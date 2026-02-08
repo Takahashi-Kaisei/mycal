@@ -4,16 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Calendar Viewer</title>
-    
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <!-- FullCalendar -->
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js'></script>
-    
+
     <!-- ical.js -->
     <script src='https://cdn.jsdelivr.net/npm/ical.js@1.5.0/build/ical.min.js'></script>
-    
+
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -56,17 +56,46 @@
     <div class="container mx-auto px-4 py-8 max-w-7xl">
         <!-- Header -->
         <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">📅 My Calendar Viewer</h1>
-            <p class="text-gray-600">Google Calendarの公開URLまたはiCalデータを表示できます</p>
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">📅 My Calendar</h1>
+            <p class="text-gray-600">自動的にカレンダーを読み込んで表示します</p>
         </div>
 
-        <!-- Input Section -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <!-- Auto Loading Indicator -->
+        <div id="loading-indicator" class="mb-6 p-4 bg-blue-50 rounded-lg flex items-center justify-center gap-3">
+            <div class="loading border-blue-600 border-t-transparent"></div>
+            <span class="text-blue-800">カレンダーを読み込んでいます...</span>
+        </div>
+
+        <!-- Settings Toggle Button -->
+        <div class="mb-4 flex justify-end">
+            <button
+                onclick="toggleSettings()"
+                class="text-gray-500 hover:text-gray-700 flex items-center gap-2 text-sm"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                設定
+            </button>
+        </div>
+
+        <!-- Input Section (Hidden by default if URL is set) -->
+        <div id="settings-panel" class="bg-white rounded-lg shadow-md p-6 mb-6 hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-gray-800">カレンダー設定</h2>
+                <button onclick="toggleSettings()" class="text-gray-400 hover:text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
             <!-- Tab Navigation -->
             <div class="mb-6 border-b border-gray-200">
                 <nav class="-mb-px flex space-x-8">
                     <button onclick="switchTab('url')" id="tab-url" class="tab-btn border-blue-500 text-blue-600 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
-                        🔗 URLから読み込み（推奨）
+                        🔗 URLから読み込み
                     </button>
                     <button onclick="switchTab('paste')" id="tab-paste" class="tab-btn border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">
                         📋 データを貼り付け
@@ -83,9 +112,9 @@
                     <label for="calendar-url" class="block text-sm font-medium text-gray-700 mb-2">
                         Google Calendarの公開URL
                     </label>
-                    <input 
-                        type="url" 
-                        id="calendar-url" 
+                    <input
+                        type="url"
+                        id="calendar-url"
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
                         placeholder="https://calendar.google.com/calendar/ical/..."
                     >
@@ -96,13 +125,12 @@
 
                 <div class="mb-4 p-3 bg-yellow-50 rounded-md">
                     <p class="text-xs text-yellow-800">
-                        <strong>⚠️ 注意：</strong>CORS制限を回避するため、無料プロキシサービスを使用します。<br>
-                        公開カレンダーのみ対応。秘密アドレスは使用しないでください。
+                        <strong>⚠️ 注意：</strong>CORS制限を回避するため、無料プロキシサービスを使用します。公開カレンダーのみ対応。
                     </p>
                 </div>
 
-                <button 
-                    onclick="loadFromUrl()" 
+                <button
+                    onclick="loadFromUrl()"
                     id="url-load-btn"
                     class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
                 >
@@ -117,17 +145,17 @@
                         <label for="ical-input" class="block text-sm font-medium text-gray-700">
                             iCalデータ
                         </label>
-                        <button 
-                            onclick="toggleMask()" 
+                        <button
+                            onclick="toggleMask()"
                             id="mask-toggle"
                             class="text-xs text-blue-600 hover:text-blue-800 underline"
                         >
                             🔒 内容を隠す
                         </button>
                     </div>
-                    <textarea 
-                        id="ical-input" 
-                        rows="8" 
+                    <textarea
+                        id="ical-input"
+                        rows="6"
                         autocomplete="off"
                         data-lpignore="true"
                         data-form-type="other"
@@ -138,20 +166,20 @@
                 </div>
 
                 <div class="flex gap-3 flex-wrap">
-                    <button 
-                        onclick="loadCalendar()" 
+                    <button
+                        onclick="loadCalendar()"
                         class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
                     >
                         カレンダーを表示
                     </button>
-                    <button 
-                        onclick="exportIcal()" 
+                    <button
+                        onclick="exportIcal()"
                         class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
                     >
                         iCalファイルとして保存
                     </button>
-                    <button 
-                        onclick="clearData()" 
+                    <button
+                        onclick="clearData()"
                         class="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
                     >
                         クリア
@@ -165,9 +193,9 @@
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         iCalファイルを選択
                     </label>
-                    <input 
-                        type="file" 
-                        id="ical-file" 
+                    <input
+                        type="file"
+                        id="ical-file"
                         accept=".ics,.ical"
                         onchange="handleFileSelect(event)"
                         class="block w-full text-sm text-gray-500
@@ -180,14 +208,14 @@
                 </div>
 
                 <div class="flex gap-3">
-                    <button 
-                        onclick="loadCalendar()" 
+                    <button
+                        onclick="loadCalendar()"
                         class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
                     >
                         カレンダーを表示
                     </button>
-                    <button 
-                        onclick="clearData()" 
+                    <button
+                        onclick="clearData()"
                         class="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium"
                     >
                         クリア
@@ -200,10 +228,9 @@
                 <p class="text-sm text-blue-800">
                     <strong>💡 Google Calendarの公開URLを取得する方法：</strong><br>
                     1. Google Calendarを開く<br>
-                    2. 左側のカレンダー一覧で、対象カレンダーの「⋯」→「設定と共有」をクリック<br>
-                    3. 「アクセス権の設定」で「一般に公開する」を選択<br>
-                    4. 「公開用アドレス」のicalアドレスをコピー<br>
-                    5. 上の「URLから読み込み」タブに貼り付け
+                    2. カレンダー設定 → 「アクセス権の設定」→「一般に公開する」<br>
+                    3. 「公開用アドレス」のicalリンクをコピー<br>
+                    4. コード内の DEFAULT_CALENDAR_URL に貼り付けて再デプロイ
                 </p>
             </div>
         </div>
@@ -233,10 +260,30 @@
         let calendar = null;
         let currentIcalData = '';
 
-        // ページ読み込み時にカレンダーを初期化
+        // ============================================
+        // 設定: ここにあなたのGoogle Calendar公開URLを入力
+        // ============================================
+        const DEFAULT_CALENDAR_URL = 'https://calendar.google.com/calendar/ical/kai.tktk62%40gmail.com/public/basic.ics';  // 例: 'https://calendar.google.com/calendar/ical/xxxxx/public/basic.ics'
+        // ============================================
+
+        // ページ読み込み時に自動的に読み込み
         document.addEventListener('DOMContentLoaded', function() {
             initCalendar([]);
+
+            // デフォルトURLが設定されていれば自動読み込み
+            if (DEFAULT_CALENDAR_URL) {
+                document.getElementById('calendar-url').value = DEFAULT_CALENDAR_URL;
+                loadFromUrl();
+            }
         });
+
+        /**
+         * 設定パネルの表示/非表示を切り替え
+         */
+        function toggleSettings() {
+            const panel = document.getElementById('settings-panel');
+            panel.classList.toggle('hidden');
+        }
 
         /**
          * タブを切り替え
@@ -267,7 +314,7 @@
          */
         function initCalendar(events) {
             const calendarEl = document.getElementById('calendar');
-            
+
             if (calendar) {
                 calendar.destroy();
             }
@@ -317,11 +364,13 @@
         async function loadFromUrl() {
             const url = document.getElementById('calendar-url').value.trim();
             const btn = document.getElementById('url-load-btn');
-            
+            const loadingIndicator = document.getElementById('loading-indicator');
+
             hideMessages();
 
             if (!url) {
                 showError('URLを入力してください。');
+                loadingIndicator.classList.add('hidden');
                 return;
             }
 
@@ -377,19 +426,25 @@
                 // データを保存してパース
                 currentIcalData = icalData;
                 document.getElementById('ical-input').value = icalData;
-                
+
                 // カレンダーを表示
                 parseAndDisplay(icalData);
-                
+
+                // ローディングインジケーターを非表示
+                loadingIndicator.classList.add('hidden');
+
                 showSuccess('カレンダーを正常に読み込みました！');
 
             } catch (error) {
                 console.error('Fetch error:', error);
                 showError('データの取得に失敗しました。URLが正しいか、カレンダーが公開されているか確認してください。');
+                loadingIndicator.classList.add('hidden');
             } finally {
                 // ボタンを元に戻す
-                btn.disabled = false;
-                btn.innerHTML = '<span>カレンダーを表示</span>';
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span>カレンダーを表示</span>';
+                }
             }
         }
 
@@ -398,9 +453,9 @@
          */
         function loadCalendar() {
             const icalData = document.getElementById('ical-input').value.trim();
-            
+
             hideMessages();
-            
+
             if (!icalData) {
                 showError('iCalデータを入力してください。');
                 return;
@@ -419,32 +474,32 @@
                 const jcalData = ICAL.parse(icalData);
                 const comp = new ICAL.Component(jcalData);
                 const vevents = comp.getAllSubcomponents('vevent');
-                
+
                 const events = [];
-                
+
                 vevents.forEach(function(vevent) {
                     const event = new ICAL.Event(vevent);
-                    
+
                     // 繰り返しイベントの処理
                     if (event.isRecurring()) {
                         const expand = event.iterator();
                         let next;
                         let count = 0;
                         const maxCount = 100;
-                        
+
                         const startRange = new Date();
                         startRange.setFullYear(startRange.getFullYear() - 1);
                         const endRange = new Date();
                         endRange.setFullYear(endRange.getFullYear() + 1);
-                        
+
                         while ((next = expand.next()) && count < maxCount) {
                             const eventStart = next.toJSDate();
-                            
+
                             if (eventStart > endRange) break;
                             if (eventStart >= startRange) {
                                 const duration = event.endDate.toJSDate() - event.startDate.toJSDate();
                                 const eventEnd = new Date(eventStart.getTime() + duration);
-                                
+
                                 events.push({
                                     title: event.summary || '無題',
                                     start: eventStart.toISOString(),
@@ -475,7 +530,7 @@
 
                 initCalendar(events);
                 showSuccess(events.length + '件のイベントを表示しました。');
-                
+
             } catch (error) {
                 console.error('Parse error:', error);
                 showError('iCalデータの解析に失敗しました。');
@@ -508,7 +563,7 @@
          */
         function exportIcal() {
             const icalData = currentIcalData || document.getElementById('ical-input').value.trim();
-            
+
             if (!icalData) {
                 showError('エクスポートするデータがありません。');
                 return;
@@ -516,16 +571,16 @@
 
             const blob = new Blob([icalData], { type: 'text/calendar' });
             const url = URL.createObjectURL(blob);
-            
+
             const a = document.createElement('a');
             a.href = url;
             a.download = 'calendar.ics';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            
+
             URL.revokeObjectURL(url);
-            
+
             showSuccess('iCalファイルをダウンロードしました。');
         }
 
@@ -551,7 +606,7 @@
             const errorText = document.getElementById('error-text');
             errorText.textContent = message;
             errorDiv.classList.remove('hidden');
-            
+
             setTimeout(() => {
                 errorDiv.classList.add('hidden');
             }, 8000);
@@ -565,7 +620,7 @@
             const successText = document.getElementById('success-text');
             successText.textContent = message;
             successDiv.classList.remove('hidden');
-            
+
             setTimeout(() => {
                 successDiv.classList.add('hidden');
             }, 5000);
@@ -596,9 +651,9 @@
         function toggleMask() {
             const textarea = document.getElementById('ical-input');
             const toggleBtn = document.getElementById('mask-toggle');
-            
+
             isMasked = !isMasked;
-            
+
             if (isMasked) {
                 textarea.style.fontFamily = 'password';
                 textarea.style.webkitTextSecurity = 'disc';
